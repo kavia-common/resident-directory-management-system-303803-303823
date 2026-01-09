@@ -143,6 +143,25 @@ else
     echo "⚠ init.sql not found; skipping schema/seed"
 fi
 
+# Apply any idempotent migration/patch SQL files (optional, safe on every start).
+# This avoids modifying init.sql repeatedly while still allowing schema evolution.
+if [ -d "migrations" ]; then
+    echo "Applying migrations from migrations/*.sql (if any)..."
+    # Apply in lexicographic order for deterministic results.
+    for f in migrations/*.sql; do
+        # If no files match, the glob returns the pattern itself; guard for that.
+        if [ ! -f "$f" ]; then
+            continue
+        fi
+        echo "-> Applying $f"
+        PGPASSWORD="${DB_PASSWORD}" ${PG_BIN}/psql \
+            -h localhost -p ${DB_PORT} -U ${DB_USER} -d ${DB_NAME} \
+            -v ON_ERROR_STOP=1 \
+            -f "$f"
+    done
+    echo "✓ Migrations applied"
+fi
+
 # Save connection command to a file
 echo "psql postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}" > db_connection.txt
 echo "Connection string saved to db_connection.txt"

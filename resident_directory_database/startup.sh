@@ -129,6 +129,20 @@ GRANT CREATE ON SCHEMA public TO ${DB_USER};
 \dn+ public
 EOF
 
+# Apply schema + seed (idempotent)
+if [ -f "init.sql" ]; then
+    echo "Applying schema and seed from init.sql..."
+    # Run as the application DB user so tables are owned consistently for the app layer.
+    # ON_ERROR_STOP ensures we fail fast if something is wrong with the SQL.
+    PGPASSWORD="${DB_PASSWORD}" ${PG_BIN}/psql \
+        -h localhost -p ${DB_PORT} -U ${DB_USER} -d ${DB_NAME} \
+        -v ON_ERROR_STOP=1 \
+        -f init.sql
+    echo "✓ Schema and seed applied"
+else
+    echo "⚠ init.sql not found; skipping schema/seed"
+fi
+
 # Save connection command to a file
 echo "psql postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}" > db_connection.txt
 echo "Connection string saved to db_connection.txt"
